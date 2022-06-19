@@ -7,5 +7,10 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.58"
+cfg-if = "1.0.0"
 id3 = "1.2.0"
 mp4ameta = "0.11.0"
+
+[target."cfg(target_os = \"macos\")".dependencies]
+core-foundation = "0.9.3"
+core-foundation-sys = "0.8.3"

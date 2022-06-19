@@ -144,3 +144,12 @@ mod tests {
         assert_eq!(file.compilation(), true);
     }
 }
+
+cfg_if::cfg_if! {
+    if #[cfg(target_os = "macos")] {
+        mod macos;
+        pub use self::macos::*;
+    } else {
+        compile_error!("Unsupported target OS");
+    }
+}
