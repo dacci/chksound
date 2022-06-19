@@ -41,6 +41,7 @@ dependencies = [
  "core-foundation",
  "core-foundation-sys",
  "id3",
+ "libc",
  "mp4ameta",
  "once_cell",
  "windows",
