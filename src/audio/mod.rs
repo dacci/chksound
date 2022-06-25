@@ -1,4 +1,7 @@
+pub mod bs1770;
+
 use anyhow::Result;
+use bs1770::{PreFilter, Stats};
 use std::path::{Path, PathBuf};
 
 pub trait AudioFile {
@@ -121,6 +124,55 @@ impl AudioFile for M4aFile {
             mp4ameta::FreeformIdent::new("com.apple.iTunes", "iTunNORM"),
             mp4ameta::Data::Utf8(val.to_string()),
         );
+    }
+}
+
+pub struct Analyzer {
+    filter: PreFilter,
+    peak: f64,
+}
+
+impl Analyzer {
+    pub fn new(sampling_rate: u32, channels: usize) -> Self {
+        let mut filter = PreFilter::new(sampling_rate, channels);
+        filter.add_block(0.4, 4);
+
+        Self { filter, peak: 0.0 }
+    }
+
+    pub fn add_sample(&mut self, sample: &[f64]) {
+        self.filter.add_sample(sample);
+        self.peak = sample
+            .iter()
+            .map(|f| f.abs())
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .map(|f| f.max(self.peak))
+            .unwrap();
+    }
+
+    pub fn flush(self) -> (Stats, f64) {
+        (self.filter.flush().pop().unwrap(), self.peak)
+    }
+}
+
+pub struct Aggregator {
+    pub stats: Stats,
+    pub peak: f64,
+}
+
+impl Aggregator {
+    pub fn aggregate(&mut self, stats: &Stats, peak: f64) {
+        self.stats.merge(stats);
+        self.peak = self.peak.max(peak);
+    }
+}
+
+impl Default for Aggregator {
+    fn default() -> Self {
+        Self {
+            stats: Stats::new(),
+            peak: 0.0,
+        }
     }
 }
 
