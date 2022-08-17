@@ -4,3 +4,8 @@ repos:
     hooks:
       - id: fmt
       - id: clippy
+  - repo: https://github.com/dacci/pre-commit
+    rev: v0.1.0
+    hooks:
+      - id: cargo-test
+        args: ['--all-features']
