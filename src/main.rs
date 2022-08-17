@@ -5,8 +5,8 @@ use clap::Parser;
 use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
 use std::collections::HashMap;
 use std::fs;
+use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
-use std::process::ExitCode;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -18,16 +18,10 @@ struct Args {
     paths: Vec<PathBuf>,
 }
 
-fn main() -> ExitCode {
+fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    match run(Args::parse()) {
-        Ok(_) => ExitCode::SUCCESS,
-        Err(e) => {
-            log::error!("{e}");
-            ExitCode::FAILURE
-        }
-    }
+    run(Args::parse());
 }
 
 struct Entry {
@@ -52,8 +46,12 @@ fn adjust_gain(gain: f64, base: f64) -> i32 {
     (10.0_f64.powf(-gain / 10.0) * base).round().min(65534.0) as i32
 }
 
-fn run(args: Args) -> Result<()> {
-    let para = thread::available_parallelism()?.get();
+const DEFAULT_PARALLELISM: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(1) };
+
+fn run(args: Args) {
+    let para = thread::available_parallelism()
+        .unwrap_or(DEFAULT_PARALLELISM)
+        .get();
     let (tx1, rx1) = bounded(para);
     let (tx2, rx2) = unbounded();
     let mut threads = Vec::with_capacity(para);
@@ -103,8 +101,6 @@ fn run(args: Args) -> Result<()> {
             log::error!("{}: {e}", entry.file.path().display());
         }
     }
-
-    Ok(())
 }
 
 fn process(path: &Path, map: &mut HashMap<String, Arc<Mutex<Aggregator>>>, tx: &Sender<Entry>) {
