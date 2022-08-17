@@ -2,6 +2,7 @@
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
+use std::fmt;
 use std::ops::{Add, AddAssign, Div, Mul, Sub};
 
 #[derive(Debug, Copy, Clone)]
@@ -117,6 +118,12 @@ impl Loudness {
 
     pub fn to_gain(self) -> f64 {
         -18.0 - self.0
+    }
+}
+
+impl fmt::Display for Loudness {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:.2} LUFS", self.0)
     }
 }
 

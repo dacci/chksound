@@ -19,10 +19,12 @@ struct Args {
 }
 
 fn main() -> ExitCode {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
     match run(Args::parse()) {
         Ok(_) => ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("{e}");
+            log::error!("{e}");
             ExitCode::FAILURE
         }
     }
@@ -98,7 +100,7 @@ fn run(args: Args) -> Result<()> {
         entry.file.set_normalization(&normalization);
 
         if let Err(e) = entry.file.save() {
-            eprintln!("{e}");
+            log::error!("{}: {e}", entry.file.path().display());
         }
     }
 
@@ -113,7 +115,7 @@ fn process(path: &Path, map: &mut HashMap<String, Arc<Mutex<Aggregator>>>, tx: &
     };
 
     if let Err(e) = res {
-        eprintln!("{}: {e}", path.display())
+        log::error!("{}: {e}", path.display())
     }
 }
 
@@ -173,7 +175,7 @@ fn analyzer(rx: Receiver<Entry>, tx: Sender<Entry>) {
         let mut reader = match AudioReader::open(entry.file.path()) {
             Ok(reader) => reader,
             Err(e) => {
-                eprintln!("{}: {e}", entry.file.path().display());
+                log::error!("{}: {e}", entry.file.path().display());
                 continue;
             }
         };
@@ -186,7 +188,7 @@ fn analyzer(rx: Receiver<Entry>, tx: Sender<Entry>) {
                     None => break analyzer.flush(),
                 },
                 Err(e) => {
-                    eprintln!("{}: {e}", entry.file.path().display());
+                    log::error!("{}: {e}", entry.file.path().display());
                     continue 'recv;
                 }
             }
@@ -196,8 +198,11 @@ fn analyzer(rx: Receiver<Entry>, tx: Sender<Entry>) {
             aggregator.lock().unwrap().aggregate(&stats, peak);
         }
 
+        let loudness = stats.get_mean(-10.0);
+
         entry.stats = Some(stats);
         entry.peak = Some(peak);
+        log::info!("{}: {}", entry.file.path().display(), loudness);
 
         let _ = tx.send(entry);
     }
