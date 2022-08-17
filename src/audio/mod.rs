@@ -35,7 +35,7 @@ impl AudioFile for Mp3File {
     }
 
     fn save(&self) -> Result<()> {
-        self.tag.write_to_path(&self.path, self.tag.version())?;
+        self.tag.write_to_path(&self.path, id3::Version::Id3v24)?;
         Ok(())
     }
 
