@@ -3,6 +3,7 @@ use once_cell::sync::OnceCell as SyncOnceCell;
 use std::path::Path;
 use std::ptr::null_mut;
 use std::slice::from_raw_parts;
+use windows::core::PCWSTR;
 use windows::Win32::Media::MediaFoundation::*;
 
 const MF_VERSION: u32 = MF_SDK_VERSION << 16 | MF_API_VERSION;
@@ -22,7 +23,15 @@ impl AudioReader {
         unsafe {
             MF.get_or_try_init(|| MFStartup(MF_VERSION, MFSTARTUP_LITE))?;
 
-            let reader = MFCreateSourceReaderFromURL(path.as_ref().as_os_str(), None)?;
+            let path = path
+                .as_ref()
+                .as_os_str()
+                .to_str()
+                .unwrap()
+                .encode_utf16()
+                .chain(Some(0))
+                .collect::<Vec<_>>();
+            let reader = MFCreateSourceReaderFromURL(PCWSTR(path.as_ptr()), None)?;
 
             let media_type = MFCreateMediaType()?;
             media_type.SetGUID(&MF_MT_MAJOR_TYPE, &MFMediaType_Audio)?;
@@ -30,7 +39,7 @@ impl AudioReader {
             media_type.SetUINT32(&MF_MT_AUDIO_BITS_PER_SAMPLE, 32)?;
             reader.SetCurrentMediaType(
                 MF_SOURCE_READER_FIRST_AUDIO_STREAM.0 as _,
-                null_mut(),
+                None,
                 &media_type,
             )?;
 
@@ -57,10 +66,10 @@ impl AudioReader {
                 self.reader.ReadSample(
                     MF_SOURCE_READER_FIRST_AUDIO_STREAM.0 as _,
                     0,
-                    null_mut(),
-                    &mut flags,
-                    null_mut(),
-                    &mut sample,
+                    None,
+                    Some(&mut flags),
+                    None,
+                    Some(&mut sample),
                 )?
             };
             if flags as i32 & MF_SOURCE_READERF_ENDOFSTREAM.0 == MF_SOURCE_READERF_ENDOFSTREAM.0 {
@@ -73,7 +82,7 @@ impl AudioReader {
             let buffer = unsafe { sample.unwrap().ConvertToContiguousBuffer()? };
             let mut pointer: *mut u8 = null_mut();
             let mut length = 0;
-            unsafe { buffer.Lock(&mut pointer, null_mut(), &mut length)? };
+            unsafe { buffer.Lock(&mut pointer, None, Some(&mut length))? };
 
             self.buffer =
                 unsafe { from_raw_parts(pointer as *const f32, (length / 4) as usize).to_vec() };

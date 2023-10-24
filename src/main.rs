@@ -149,7 +149,7 @@ fn process_file(
         if let Some(artist) = file.artist() {
             if let Some(album) = file.album() {
                 let group = format!("{}\0{}", artist, album);
-                let aggregator = map.entry(group).or_insert_with(Default::default);
+                let aggregator = map.entry(group).or_default();
                 Some(Arc::clone(aggregator))
             } else {
                 None
